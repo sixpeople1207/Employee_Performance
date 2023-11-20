@@ -59,15 +59,24 @@ class DB_Manager:
         pd.set_option('display.width', 1000)
         for file_path in file_pathes:   
             try:
+                column_Name = "Unnamed: 0"
+                dropColumn_StartNo = 4
                 df = pd.read_excel(file_path, sheet_name='일일업무')
                 ## 필요없는 열을 지워준다.
-                ## 열의 갯수를 카운트해서
-                for i in range(4,len(df.columns)):
+                ## 열의 갯수를 카운트해서 앞줄에 빈칸이 붙어있으면 지우고 Drop하는 StartNumber도 한칸 앞으로 당겨준다.
+                columns_list = df.columns
+                if(columns_list[0] == column_Name):
+                    # columns_list = columns_list.drop(columns=['Unnamed: 0']) #<-- 수정필요 (23.11.10)
+                    df = df.drop(columns=['Unnamed: 0'])
+                    ## 데이터 프레임에서 Drop하고 난 후에는 반드시 다시 columns list를 저장한다.
+                    columns_list = df.columns
+                    dropColumn_StartNo+=1
+
+                for i in range(dropColumn_StartNo,len(df.columns)):
                     df = df.drop(columns=['Unnamed: '+str(i)])
-
                 # 열 이름을 보기 좋게 바꾼다. 
-                df = df.rename(columns={'  일일 업무보고서':'날짜','Unnamed: 1':'현장','Unnamed: 2':'이름','Unnamed: 3':'작업'})
-
+                df = df.rename(columns={columns_list[0]:'날짜',columns_list[1]:'현장',columns_list[2]:'이름',columns_list[3]:'작업'})
+                print(file_path)
                 ## 한 열을 날짜로 채워준다. 
                 df['날짜'] = df['날짜'].apply(lambda x:file_path[-13:-5]) 
                 ## 이름만 추출 한다.
@@ -90,6 +99,7 @@ class DB_Manager:
                         self.excute_daily_work(table_name, daily_work['날짜'].to_list()[0], daily_work['이름'].to_list()[0], "nan", daily_work['작업'].to_list()[0],"nan","nan")
                         # db_manager.excute_daily_work(table_name, daily_work['날짜'].to_list()[0], daily_work['이름'].to_list()[0], "nan", daily_work['작업'].to_list()[0],"nan","nan")
                 # works = pd.concat([works,df],axis = 1)
+                self.conn.commit()
             except sqlite3.Error as e:
                 print(file_path)
                 print(e)

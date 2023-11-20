@@ -68,8 +68,8 @@ def get_codes_indexes(jackup, juya_indexes, works_type_gubun):
         data = []
         works_mat_object = []
         exception_li = [] ## 예외되는 작업 리스트들은 여기에 저장.
-        code = re.compile('(\d{1}\w{4}\d{3})(.*?)').findall(jackup)
-        mat = re.finditer('(\d{1}\w{4}\d{3})|(\d{1}\w{3}\d{4})|(\w{4}\d{4})', jackup)
+        code = re.compile('(\d{1}\w{4}\d{3})|(\d{1}\w{3}\d{4})|(\w{4}\d{4})|(\w{5}\d{3})').findall(jackup)
+        mat = re.finditer('(\d{1}\w{4}\d{3})|(\d{1}\w{3}\d{4})|(\w{4}\d{4})|(\w{5}\d{3})', jackup)
         yungu_mat = re.finditer('(\w{5}\d{3})', jackup) ## 이 타입도 있다.
 
         contius_codes = re.sub("\s","",jackup)
@@ -85,7 +85,7 @@ def get_codes_indexes(jackup, juya_indexes, works_type_gubun):
         
         works = ['설계','TRAY','보강대','간섭','이슈','협의'] ## => 설계
         works_B = ['도면출도','도면작업'] ## 도면 정리 제외
-        works_C = ['업데이트','REV'] ## => 업데이트
+        works_C = ['업데이트','REV','3차배관설계','TRAY설계'] ## => 업데이트
 
     # 작업내용리스트를 돌면서 매칭된 re.Match object를 리스트로 가져온다. 단 두개 이상일때는 별도의 작업필요.
         for work in works:
@@ -132,7 +132,7 @@ def get_codes_indexes(jackup, juya_indexes, works_type_gubun):
                 current = mats[m]
             else:
                 before = mats[m-1]
-                current = mats[m]
+                current = mats[m] #'6DHFA115 9F GAS, PCW 설계 1/16(100%)\n6DHFA115 9F EXH 설계 1/16(100%)\n6DHFA115 10F EXH 설계 1/12(100%)\n연장 - 없음 '
             for co in codes:
                 if co > before and co < current and co < ya_index:
                     ok_count+=1
@@ -232,6 +232,7 @@ def get_codes_indexes(jackup, juya_indexes, works_type_gubun):
         return final_list
     except:
         print(jackup)
+        
 def continu_codes(work_text):
     work_text = work_text.replace(" ","")
     continu_codes_before_codes = re.finditer('\d{1}\w{4}\d{3},\d{4}',work_text)
