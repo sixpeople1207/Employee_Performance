@@ -64,18 +64,21 @@ def get_codes_indexes(jackup, juya_indexes, works_type_gubun):
         elif works_type_gubun == "연장":
             ya_index = juya_indexes[1]
             YUNJANG = True
+        elif works_type_gubun == "야간":
+            ya_index = juya_indexes[1]
+            YUNJANG = True
         
         data = []
         works_mat_object = []
         exception_li = [] ## 예외되는 작업 리스트들은 여기에 저장.
-        code = re.compile('(\d{1}\w{4}\d{3})|(\d{1}\w{3}\d{4})|(\w{4}\d{4})|(\w{5}\d{3})').findall(jackup)
-        mat = re.finditer('(\d{1}\w{4}\d{3})|(\d{1}\w{3}\d{4})|(\w{4}\d{4})|(\w{5}\d{3})', jackup)
-        yungu_mat = re.finditer('(\w{5}\d{3})', jackup) ## 이 타입도 있다.
+        # code = re.compile('(\d{1}\w{4}\d{3})|(\d{1}\w{3}\d{4})|(\w{4}\d{4})|(\w{5}\d{3})').findall(jackup)
+        # yungu_mat = re.finditer('(\w{5}\d{3})', jackup) ## 이 타입도 있다.
+        code_mat = re.finditer('(\d{1}\w{4}\d{3})|(\d{1}\w{3}\d{4})|(\w{4}\d{4})|(\w{5}\d{3})', jackup)
 
         contius_codes = re.sub("\s","",jackup)
         is_contius_codes = re.finditer(',\d{4}',contius_codes)
 
-        code_indexes = list(iter(mat))
+        code_indexes = list(iter(code_mat))
 
     ## 코드를 찾지 못한다면 
         if len(code_indexes) == 0:
@@ -86,6 +89,7 @@ def get_codes_indexes(jackup, juya_indexes, works_type_gubun):
         works = ['설계','TRAY','보강대','간섭','이슈','협의'] ## => 설계
         works_B = ['도면출도','도면작업'] ## 도면 정리 제외
         works_C = ['업데이트','REV','3차배관설계','TRAY설계'] ## => 업데이트
+        works_Util = ['GAS','PCW','DR','EXH','VAC','SCR'] ## 23.11.20 업데이트
 
     # 작업내용리스트를 돌면서 매칭된 re.Match object를 리스트로 가져온다. 단 두개 이상일때는 별도의 작업필요.
         for work in works:
@@ -97,47 +101,58 @@ def get_codes_indexes(jackup, juya_indexes, works_type_gubun):
         for C in works_C:
             index = re.finditer(C,jackup)
             data.append(list(iter(index)))
+        #23.11.20추가 유체 정보 가져오기
+        # for D in works_Util:
+        #     index = re.finditer(D,jackup)
+        #     data.append(list(iter(index)))
 
-    # re.Match object이 2개 이상일때는 리스트를 1개로 분리해줘야한다.
+        # re.Match object이(찾은 결과가) 2개 이상일때는 한번더 배열에 넣어준다.
         for i in range(len(data)):
             if len(data[i]) == 1:
                 works_mat_object.append(data[i][0])
             elif len(data[i]) > 1:
-                for da in range(len(data[i])):
+                for j in range(len(data[i])):
                     ## data[i]가 2개 이상일 때는 2차원 배열이기 때문에 2번째 배열을 변경해준다.
-                    works_mat_object.append(data[i][da])
+                    works_mat_object.append(data[i][j])
+        
         # 예외 처리
-
+        # print(works_mat_object)
         for i in range(len(works_mat_object)):
             if i >0:
                 if works_mat_object[i-1].start() > works_mat_object[i].start():
                     temp = works_mat_object[i]
                     works_mat_object[i] = works_mat_object[i-1] 
                     works_mat_object[i-1] = temp 
-        # print(works_mat_object)
+
+
         # 주간과 야근 사이에 호기,, 작업이 되는지. 작업 되에 호기가 있는지 판단 
-        # 야근 뒤에 호기와 작업이 있는가? 
+        # 야근 뒤에 호기와 작업이 있는가? 검수하는 코드
         codes = []
         mats = []
         for code in code_indexes:
             codes.append(code.start())
         for mat in works_mat_object:
             mats.append(mat.start())
+
         codes.sort()
         mats.sort()
         ok_count = 0
-        for m in range(len(mats)):
-            if m-1 < 0:
+
+        ## mats는 작업의 수 codes수와 매칭하려고 하니 당연히 되지 않는다. 한 코드에 한 개이상의 작업이 매칭되는 경우도 발생.
+    
+        for k in range(len(mats)):
+            if k-1 < 0:
                 before = 0
-                current = mats[m]
+                current = mats[k]
             else:
-                before = mats[m-1]
-                current = mats[m] #'6DHFA115 9F GAS, PCW 설계 1/16(100%)\n6DHFA115 9F EXH 설계 1/16(100%)\n6DHFA115 10F EXH 설계 1/12(100%)\n연장 - 없음 '
+                before = mats[k-1]
+                current = mats[k]
+
             for co in codes:
                 if co > before and co < current and co < ya_index:
                     ok_count+=1
                 else:
-                    if co > ya_index and co > ya_index and current > co:
+                    if co > ya_index and co < current and co > before: ## co > before 코드 추가 23.11.21
                         ok_count+=1
         if ok_count != len(codes):
             exception_li.append(jackup)
